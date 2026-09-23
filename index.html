@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Hugo y el Desafío del Tiempo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #07030d;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 440px;
+            height: 100vh;
+            max-height: 840px;
+            background: #110926;
+            box-shadow: 0 0 35px rgba(0, 240, 255, 0.4), 0 0 15px rgba(255, 0, 127, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-radius: 12px;
+        }
+
+        #hud {
+            background: rgba(12, 7, 26, 0.95);
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            border-bottom: 2px solid #00f0ff;
+            z-index: 10;
+        }
+        .hud-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .hud-title {
+            font-size: 13px;
+            color: #ff007f;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(255, 0, 127, 0.6);
+        }
+        .hud-val {
+            font-size: 14px;
+            font-weight: bold;
+            color: #00f0ff;
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+        }
+        #lives-display {
+            font-size: 16px;
+            letter-spacing: 2px;
+        }
+        #sound-btn {
+            background: #231545;
+            border: 1px solid #ff007f;
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        #sound-btn:active {
+            transform: scale(0.95);
+        }
+        #target-card {
+            background: linear-gradient(135deg, #250042, #470068);
+            border: 2px solid #ff007f;
+            border-radius: 8px;
+            padding: 6px;
+            text-align: center;
+            box-shadow: 0 0 12px rgba(255, 0, 127, 0.5);
+        }
+        #target-card .sub {
+            font-size: 11px;
+            color: #ffb700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+        #target-card .time-display {
+            font-size: 19px;
+            font-weight: 900;
+            color: #ffffff;
+            margin-top: 2px;
+            text-shadow: 0 0 10px #00f0ff, 0 0 20px #00f0ff;
+        }
+
+        #canvas-wrapper {
+            position: relative;
+            flex: 1;
+            width: 100%;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #controls {
+            display: flex;
+            height: 65px;
+            background: #080314;
+            border-top: 1px solid #2a164d;
+        }
+        .btn-lane {
+            flex: 1;
+            background: #180b33;
+            border: 1px solid #3d1c7a;
+            color: #00f0ff;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 4px;
+            text-align: center;
+            transition: background 0.1s, transform 0.1s;
+        }
+        .btn-lane:active {
+            background: #00f0ff;
+            color: #000;
+            transform: scale(0.98);
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(8, 4, 18, 0.78);
+            backdrop-filter: blur(3px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px 18px;
+            text-align: center;
+            z-index: 20;
+            overflow-y: auto;
+        }
+
+        .arcade-title {
+            font-size: 26px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            line-height: 1.2;
+            background: linear-gradient(180deg, #fff7a0 0%, #ffb700 45%, #ff007f 80%, #9900ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 10px rgba(255, 0, 127, 0.8)) drop-shadow(0 0 20px rgba(0, 240, 255, 0.6));
+            animation: titlePulse 2s infinite alternate ease-in-out;
+            margin-bottom: 8px;
+        }
+
+        @keyframes titlePulse {
+            0% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(255,0,127,0.8)); }
+            100% { transform: scale(1.03); filter: drop-shadow(0 0 18px rgba(0,240,255,0.9)); }
+        }
+
+        .story-box {
+            background: rgba(26, 11, 51, 0.85);
+            border: 2px solid #00f0ff;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 8px 0;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+        }
+        .story-text {
+            font-size: 13px;
+            color: #ffe875;
+            font-weight: 600;
+            line-height: 1.4;
+            text-shadow: 0 0 6px rgba(255, 232, 117, 0.4);
+        }
+
+        .guide-box {
+            background: rgba(15, 6, 31, 0.9);
+            border: 1px solid #ff007f;
+            border-radius: 10px;
+            padding: 10px;
+            width: 100%;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+        .guide-title {
+            font-size: 12px;
+            color: #00f0ff;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+        .guide-step {
+            font-size: 12px;
+            color: #e2d3ff;
+            margin: 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .score-banner {
+            position: relative;
+            background: linear-gradient(135deg, #1c003d, #3c0060);
+            border: 2px solid #00f0ff;
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin: 10px 0;
+            box-shadow: 0 0 25px rgba(0,240,255,0.6), inset 0 0 15px rgba(255,0,127,0.4);
+            animation: bannerGlow 1.5s infinite alternate;
+        }
+
+        @keyframes bannerGlow {
+            0% { box-shadow: 0 0 15px rgba(0,240,255,0.4), inset 0 0 10px rgba(255,0,127,0.3); }
+            100% { box-shadow: 0 0 30px rgba(255,0,127,0.8), inset 0 0 20px rgba(0,240,255,0.6); }
+        }
+
+        .score-num {
+            font-size: 28px;
+            font-weight: 900;
+            color: #ffe600;
+            text-shadow: 0 0 12px #ffe600, 0 0 24px #ff007f;
+        }
+
+        .btn-main {
+            background: linear-gradient(45deg, #ff007f, #7928ca);
+            border: 2px solid #ffffff;
+            color: white;
+            padding: 12px 28px;
+            font-size: 17px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(255,0,127,0.8);
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+        .btn-main:active {
+            transform: scale(0.95);
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- Top HUD -->
+    <div id="hud">
+        <div class="hud-row">
+            <span class="hud-title">PANTALLA <span id="lvl-txt">1</span>/50</span>
+            <span id="lives-display">❤️❤️❤️</span>
+            <button id="sound-btn" onclick="toggleSound()">🔊 SONIDO: ON</button>
+            <span class="hud-val">PTS: <span id="score-txt">0</span></span>
+        </div>
+        <div id="target-card">
+            <div class="sub">Toca o pulsa sobre la puerta correcta:</div>
+            <div id="target-time" class="time-display">04:10 h</div>
+        </div>
+    </div>
+
+    <!-- Canvas area -->
+    <div id="canvas-wrapper">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <!-- Mobile Touch Controls -->
+    <div id="controls">
+        <div class="btn-lane" onclick="selectLane(0)">◄ IZQUIERDA</div>
+        <div class="btn-lane" onclick="selectLane(1)">▲ CENTRO</div>
+        <div class="btn-lane" onclick="selectLane(2)">DERECHA ►</div>
+    </div>
+
+    <!-- Start Overlay -->
+    <div id="start-overlay" class="overlay">
+        <div>
+            <div class="arcade-title">HUGO Y EL DESAFÍO DEL TIEMPO</div>
+            <div class="story-box">
+                <p class="story-text">
+                    "Ayuda a Hugo a encontrar el camino correcto a través del espacio-tiempo para regresar a casa con los Mateamigos"
+                </p>
+            </div>
+        </div>
+
+        <div class="guide-box">
+            <div class="guide-title">🎮 MODO DE JUEGO 🎮</div>
+            <div class="guide-step"><span>1️⃣</span> <b>Mira la hora objetivo</b> en el panel superior.</div>
+            <div class="guide-step"><span>2️⃣</span> <b>Observa las 3 puertas</b> y los relojes analógicos en sus dinteles.</div>
+            <div class="guide-step"><span>3️⃣</span> <b>Toca la puerta correcta</b>: ¡Hugo girará y se absorberá por el portal del espacio-tiempo!</div>
+        </div>
+
+        <button class="btn-main" onclick="startGame()">¡INICIAR LA AVENTURA!</button>
+    </div>
+
+    <!-- Victory / Game Over Overlay -->
+    <div id="end-overlay" class="overlay hidden">
+        <div>
+            <div id="end-title" class="arcade-title">¡MISION CUMPLIDA!</div>
+            <div class="story-box" id="end-story-box">
+                <p class="story-text" id="end-desc">
+                    ¡Hugo ha atravesado con éxito las 50 puertas del espacio-tiempo y ha regresado a la Tierra! ¡Ahora está felizmente reunido con sus grandes amigos, los <b>Mateamigos</b>!
+                </p>
+            </div>
+        </div>
+
+        <div class="score-banner">
+            <div style="font-size: 12px; color: #00f0ff; font-weight: bold; text-transform: uppercase;">⚡ PUNTUACIÓN ESPACIO-TEMPORAL ⚡</div>
+            <div class="score-num" id="final-score">0</div>
+        </div>
+
+        <button class="btn-main" onclick="restartGame()">VOLVER A JUGAR</button>
+    </div>
+</div>
+
+<script>
+    const imgFondo = new Image();
+    imgFondo.src = 'fondo.jpg';
+
+    const imgHugo = new Image();
+    imgHugo.src = 'hugo.png';
+
+    const imgPuerta = new Image();
+    imgPuerta.src = 'puerta.png';
+
+    const TOTAL_LEVELS = 50;
+    let currentLevel = 1;
+    let score = 0;
+    let lives = 3;
+    let soundEnabled = true;
+    let gameRunning = false;
+    let waitingForInput = false;
+
+    // Hugo absorption state variables
+    let isAbsorbing = false;
+    let absorptionProgress = 0; // 0.0 to 1.0
+    let absorptionStartPos = { x: 0, y: 0 };
+    let absorptionTargetPos = { x: 0, y: 0 };
+    
+    // Hugo reappear state variables
+    let isReappearing = false;
+    let reappearProgress = 1.0;
+
+    // Time-travel particles/effects array
+    let portalParticles = [];
+
+    let audioCtx = null;
+    let musicInterval = null;
+    let musicNoteIndex = 0;
+    const bgNotes = [104.65, 98.00, 92.50, 87.31]; 
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    function startMusic() {
+        if (!soundEnabled || musicInterval) return;
+        initAudio();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        musicNoteIndex = 0;
+        musicInterval = setInterval(() => {
+            if (!soundEnabled) {
+                stopMusic();
+                return;
+            }
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(bgNotes[musicNoteIndex], now);
+
+            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.12);
+
+            musicNoteIndex = (musicNoteIndex + 1) % bgNotes.length;
+        }, 250);
+    }
+
+    function stopMusic() {
+        if (musicInterval) {
+            clearInterval(musicInterval);
+            musicInterval = null;
+        }
+    }
+
+    function toggleSound() {
+        soundEnabled = !soundEnabled;
+        const btn = document.getElementById('sound-btn');
+        btn.innerText = soundEnabled ? "🔊 SONIDO: ON" : "🔇 SONIDO: OFF";
+        if (soundEnabled) {
+            startMusic();
+        } else {
+            stopMusic();
+        }
+    }
+
+    function playSound(type) {
+        if (!soundEnabled) return;
+        initAudio();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'move') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(300, now);
+            osc.frequency.exponentialRampToValueAtTime(600, now + 0.05);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+            osc.start(now);
+            osc.stop(now + 0.05);
+        } else if (type === 'correct') {
+            // Portal warp beam sound effect
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(300, now);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 0.4);
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+            osc.start(now);
+            osc.stop(now + 0.45);
+        } else if (type === 'wrong') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(180, now);
+            osc.frequency.setValueAtTime(100, now + 0.12);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+            osc.start(now);
+            osc.stop(now + 0.25);
+        } else if (type === 'win') {
+            [523, 659, 783, 1046].forEach((freq, idx) => {
+                let o = audioCtx.createOscillator();
+                let g = audioCtx.createGain();
+                o.type = 'square';
+                o.connect(g);
+                g.connect(audioCtx.destination);
+                o.frequency.setValueAtTime(freq, now + idx * 0.1);
+                g.gain.setValueAtTime(0.12, now + idx * 0.1);
+                g.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.1 + 0.2);
+                o.start(now + idx * 0.1);
+                o.stop(now + idx * 0.1 + 0.2);
+            });
+        }
+    }
+
+    window.addEventListener('pointerdown', () => {
+        if (!audioCtx) initAudio();
+        if (soundEnabled && !musicInterval) startMusic();
+    }, { once: false });
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    let playerLane = 1;
+    let playerTargetX = 0;
+    let playerCurrentX = 0;
+    let doorZ = 0;
+    let currentQuestion = null;
+    let gridOffset = 0;
+
+    const NUMBERS_SP = ["doce", "una", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce"];
+
+    function getTimeInWords(h24, m) {
+        let period = "";
+        if (h24 >= 0 && h24 < 6) period = "de la madrugada";
+        else if (h24 >= 6 && h24 < 12) period = "de la mañana";
+        else if (h24 >= 12 && h24 < 20) period = "de la tarde";
+        else period = "de la noche";
+
+        let h12 = h24 % 12;
+        let nextH12 = (h12 + 1) % 12;
+        if (h12 === 0) h12 = 12;
+        if (nextH12 === 0) nextH12 = 12;
+
+        let hStr = NUMBERS_SP[h12];
+        let nextHStr = NUMBERS_SP[nextH12];
+        let verb = h12 === 1 ? "Es la" : "Son las";
+        let verbNext = nextH12 === 1 ? "Es la" : "Son las";
+
+        const formatOptions = {
+            0: [`${verb} ${hStr} en punto ${period}`],
+            5: [`${verb} ${hStr} y cinco ${period}`, `${verb} ${hStr} y cinco minutos ${period}`],
+            10: [`${verb} ${hStr} y diez ${period}`, `${verb} ${hStr} y diez minutos ${period}`],
+            15: [`${verb} ${hStr} y cuarto ${period}`, `${verb} ${hStr} y quince ${period}`],
+            20: [`${verb} ${hStr} y veinte ${period}`, `${verb} ${hStr} y veinte minutos ${period}`],
+            25: [`${verb} ${hStr} y veinticinco ${period}`],
+            30: [`${verb} ${hStr} y media ${period}`],
+            35: [`${verbNext} ${nextHStr} menos veinticinco ${period}`, `${verb} ${hStr} y treinta y cinco ${period}`],
+            40: [`${verbNext} ${nextHStr} menos veinte ${period}`, `${verb} ${hStr} y cuarenta ${period}`],
+            45: [`${verbNext} ${nextHStr} menos cuarto ${period}`, `${verbNext} ${nextHStr} menos quince ${period}`],
+            50: [`${verbNext} ${nextHStr} menos diez ${period}`],
+            55: [`${verbNext} ${nextHStr} menos cinco ${period}`]
+        };
+
+        const opts = formatOptions[m] || [`${verb} ${hStr} y ${m} ${period}`];
+        return opts[Math.floor(Math.random() * opts.length)];
+    }
+
+    function generateQuestion(level) {
+        const minuteSteps = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+        let m = minuteSteps[Math.floor(Math.random() * minuteSteps.length)];
+        let h24 = Math.floor(Math.random() * 24);
+
+        let mode = Math.floor(Math.random() * 3);
+        if (level <= 5) mode = 0; 
+        else if (level <= 12) mode = Math.random() < 0.5 ? 0 : 1; 
+
+        let promptText = "";
+        if (mode === 0) {
+            let hh = h24 < 10 ? "0" + h24 : h24;
+            let mm = m < 10 ? "0" + m : m;
+            promptText = `${hh}:${mm} h`;
+        } else if (mode === 1) {
+            let h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+            let period = h24 < 12 ? "a.m." : "p.m.";
+            let hh = h12 < 10 ? "0" + h12 : h12;
+            let mm = m < 10 ? "0" + m : m;
+            promptText = `${hh}:${mm} ${period}`;
+        } else {
+            promptText = getTimeInWords(h24, m);
+        }
+
+        let correctOption = { h: h24, m: m };
+        let wrongOptions = [];
+
+        let possibleMins = minuteSteps.filter(x => x !== m);
+        let wm1 = possibleMins[Math.floor(Math.random() * possibleMins.length)];
+        wrongOptions.push({ h: h24, m: wm1 });
+
+        let remainingMins = possibleMins.filter(x => x !== wm1);
+        let wm2 = remainingMins[Math.floor(Math.random() * remainingMins.length)];
+        let wh2 = h24;
+        if (m >= 35 && Math.random() < 0.5) {
+            wh2 = (h24 + 1) % 24;
+        } else if (Math.random() < 0.3) {
+            wh2 = (h24 + 1) % 24;
+        }
+
+        wrongOptions.push({ h: wh2, m: wm2 });
+
+        let lanes = [0, 1, 2].sort(() => Math.random() - 0.5);
+        let doors = [];
+        doors[lanes[0]] = { ...correctOption, isCorrect: true };
+        doors[lanes[1]] = { ...wrongOptions[0], isCorrect: false };
+        doors[lanes[2]] = { ...wrongOptions[1], isCorrect: false };
+
+        return { promptText, doors, correctLane: lanes[0] };
+    }
+
+    function drawAnalogClock(x, y, radius, hours, minutes) {
+        ctx.save();
+        ctx.translate(x, y);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+        ctx.lineWidth = Math.max(3, radius * 0.08);
+        ctx.strokeStyle = "#ff007f";
+        ctx.stroke();
+
+        ctx.fillStyle = "#111111";
+        ctx.font = `bold ${Math.max(9, radius * 0.28)}px 'Segoe UI', sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        for (let num = 1; num <= 12; num++) {
+            let angle = (num * Math.PI / 6) - (Math.PI / 2);
+            let numX = Math.cos(angle) * (radius * 0.72);
+            let numY = Math.sin(angle) * (radius * 0.72);
+            ctx.fillText(num.toString(), numX, numY);
+        }
+
+        let hourAngle = ((hours % 12 + minutes / 60) * Math.PI / 6) - (Math.PI / 2);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(hourAngle) * (radius * 0.45), Math.sin(hourAngle) * (radius * 0.45));
+        ctx.strokeStyle = "#111111";
+        ctx.lineWidth = Math.max(3, radius * 0.12);
+        ctx.lineCap = "round";
+        ctx.stroke();
+
+        let minuteAngle = ((minutes / 60) * Math.PI * 2) - (Math.PI / 2);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(minuteAngle) * (radius * 0.72), Math.sin(minuteAngle) * (radius * 0.72));
+        ctx.strokeStyle = "#0077ff";
+        ctx.lineWidth = Math.max(2, radius * 0.08);
+        ctx.lineCap = "round";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.max(3, radius * 0.08), 0, Math.PI * 2);
+        ctx.fillStyle = "#ff007f";
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function updateLivesUI() {
+        let hearts = "";
+        for (let i = 0; i < lives; i++) hearts += "❤️";
+        for (let i = lives; i < 3; i++) hearts += "🖤";
+        document.getElementById('lives-display').innerText = hearts;
+    }
+
+    function spawnPortalParticles(targetX, targetY) {
+        portalParticles = [];
+        for (let i = 0; i < 65; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 7;
+            portalParticles.push({
+                x: targetX,
+                y: targetY,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                radius: 2 + Math.random() * 5,
+                color: Math.random() < 0.5 ? '#00f0ff' : (Math.random() < 0.5 ? '#ff007f' : '#ffe600'),
+                alpha: 1.0,
+                decay: 0.015 + Math.random() * 0.02
+            });
+        }
+    }
+
+    function updateAndDrawPortalParticles() {
+        for (let i = portalParticles.length - 1; i >= 0; i--) {
+            let p = portalParticles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.alpha -= p.decay;
+
+            if (p.alpha <= 0) {
+                portalParticles.splice(i, 1);
+                continue;
+            }
+
+            ctx.save();
+            ctx.globalAlpha = p.alpha;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = p.color;
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    function selectLane(lane) {
+        if (!gameRunning || !waitingForInput || isAbsorbing) return;
+        
+        playerLane = lane;
+        waitingForInput = false;
+
+        const w = canvas.width;
+        const h = canvas.height;
+        const horizonY = h * 0.28;
+        const playerY = h * 0.82;
+        const laneXHorizon = [w * 0.42, w * 0.5, w * 0.58];
+        const laneXPlayer = [w * 0.16, w * 0.5, w * 0.84];
+        
+        const doorXs = [0, 1, 2].map(l => laneXHorizon[l] + ((laneXPlayer[l] - laneXHorizon[l]) * doorZ));
+        const laneSpacing = doorXs[1] - doorXs[0];
+        const doorW = laneSpacing * 0.94;
+        const doorH = doorW * 1.55;
+        const currentDoorY = horizonY + ((playerY - horizonY) * doorZ);
+
+        if (playerLane === currentQuestion.correctLane) {
+            // Trigger Hugo Absorption into the Portal
+            isAbsorbing = true;
+            absorptionProgress = 0;
+            absorptionStartPos = { x: playerCurrentX, y: playerY + 35 };
+            absorptionTargetPos = { x: doorXs[lane], y: currentDoorY - (doorH * 0.5) };
+
+            spawnPortalParticles(absorptionTargetPos.x, absorptionTargetPos.y);
+            playSound('correct');
+            score += 100 + (currentLevel * 10);
+        } else {
+            lives--;
+            updateLivesUI();
+            playSound('wrong');
+
+            if (lives <= 0) {
+                finishGame(false);
+            } else {
+                currentLevel++;
+                if (currentLevel > TOTAL_LEVELS) {
+                    finishGame(true);
+                } else {
+                    nextLevel();
+                }
+            }
+        }
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+        if (!gameRunning || !waitingForInput || isAbsorbing) return;
+        const rect = canvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        if (clickX < rect.width / 3) selectLane(0);
+        else if (clickX < (rect.width * 2) / 3) selectLane(1);
+        else selectLane(2);
+    });
+
+    window.addEventListener('keydown', (e) => {
+        if (!gameRunning || !waitingForInput || isAbsorbing) return;
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') selectLane(0);
+        if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') selectLane(1);
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') selectLane(2);
+    });
+
+    function startGame() {
+        startMusic();
+        document.getElementById('start-overlay').classList.add('hidden');
+        document.getElementById('end-overlay').classList.add('hidden');
+        currentLevel = 1;
+        score = 0;
+        lives = 3;
+        updateLivesUI();
+        gameRunning = true;
+        isAbsorbing = false;
+        isReappearing = true;
+        reappearProgress = 0;
+        nextLevel();
+    }
+
+    function restartGame() {
+        startGame();
+    }
+
+    function nextLevel() {
+        doorZ = 0;
+        waitingForInput = false;
+        currentQuestion = generateQuestion(currentLevel);
+        document.getElementById('lvl-txt').innerText = currentLevel;
+        document.getElementById('score-txt').innerText = score;
+        document.getElementById('target-time').innerText = currentQuestion.promptText;
+        
+        isReappearing = true;
+        reappearProgress = 0;
+    }
+
+    function finishGame(win) {
+        gameRunning = false;
+        if (win) playSound('win');
+        
+        const endTitle = document.getElementById('end-title');
+        const endDesc = document.getElementById('end-desc');
+        
+        if (win) {
+            endTitle.innerText = "¡MISIÓN CUMPLIDA!";
+            endDesc.innerHTML = "¡Hugo ha atravesado con éxito las 50 puertas del espacio-tiempo y ha regresado a la Tierra! ¡Ahora está felizmente reunido con sus grandes amigos, los <b>Mateamigos</b>!";
+        } else {
+            endTitle.innerText = "¡FIN DEL JUEGO!";
+            endDesc.innerHTML = `Te has quedado sin vidas en la pantalla <b>${currentLevel}</b>. ¡Inténtalo de nuevo para ayudar a Hugo a regresar a casa!`;
+        }
+        
+        document.getElementById('final-score').innerText = score;
+        document.getElementById('end-overlay').classList.remove('hidden');
+    }
+
+    function gameLoop() {
+        resizeCanvas();
+        const w = canvas.width;
+        const h = canvas.height;
+        const horizonY = h * 0.28;
+        const playerY = h * 0.82;
+
+        // Draw persistent background image (fondo.jpg)
+        if (imgFondo.complete && imgFondo.naturalWidth !== 0) {
+            ctx.drawImage(imgFondo, 0, 0, w, h);
+        } else {
+            ctx.fillStyle = "#0a0314";
+            ctx.fillRect(0, 0, w, h);
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
+            skyGrad.addColorStop(0, '#12002b');
+            skyGrad.addColorStop(1, '#4a005c');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, w, horizonY);
+            ctx.fillStyle = "#120826";
+            ctx.fillRect(0, horizonY, w, h - horizonY);
+        }
+
+        if (!gameRunning) {
+            requestAnimationFrame(gameLoop);
+            return;
+        }
+
+        // Move doors closer until stopped for user input
+        if (doorZ < 0.82 && !isAbsorbing) {
+            const speed = 0.01 + (currentLevel * 0.00015);
+            doorZ += speed;
+            if (doorZ >= 0.82) {
+                doorZ = 0.82;
+                waitingForInput = true;
+            }
+            gridOffset = (gridOffset + speed * 120) % 30;
+        }
+
+        // Lane perspective lines
+        const laneXHorizon = [w * 0.42, w * 0.5, w * 0.58];
+        const laneXPlayer = [w * 0.16, w * 0.5, w * 0.84];
+
+        ctx.strokeStyle = "rgba(0, 240, 255, 0.4)";
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.moveTo(laneXHorizon[i], horizonY);
+            ctx.lineTo(laneXPlayer[i], h);
+            ctx.stroke();
+        }
+
+        // Motion grid
+        ctx.strokeStyle = "rgba(255, 0, 127, 0.2)";
+        for (let y = horizonY + gridOffset; y < h; y += 25) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+        }
+
+        // Calculate door positions and size dynamically
+        const doorXs = [0, 1, 2].map(lane => laneXHorizon[lane] + ((laneXPlayer[lane] - laneXHorizon[lane]) * doorZ));
+        const laneSpacing = doorXs[1] - doorXs[0];
+        const doorW = laneSpacing * 0.94; // Maximum width without overlapping
+        const doorH = doorW * 1.55;
+        const clockRadius = doorW * 0.38;
+        const currentDoorY = horizonY + ((playerY - horizonY) * doorZ);
+
+        for (let lane = 0; lane < 3; lane++) {
+            const doorX = doorXs[lane];
+
+            if (imgPuerta.complete && imgPuerta.naturalWidth !== 0) {
+                ctx.drawImage(imgPuerta, doorX - doorW / 2, currentDoorY - doorH, doorW, doorH);
+                if (waitingForInput && lane === playerLane) {
+                    ctx.strokeStyle = "#00f0ff";
+                    ctx.lineWidth = Math.max(3, doorW * 0.04);
+                    ctx.strokeRect(doorX - doorW / 2, currentDoorY - doorH, doorW, doorH);
+                }
+            } else {
+                ctx.fillStyle = waitingForInput && lane === playerLane ? "rgba(0, 240, 255, 0.2)" : "rgba(20, 10, 40, 0.92)";
+                ctx.strokeStyle = waitingForInput ? "#00f0ff" : "#ff007f";
+                ctx.lineWidth = Math.max(3, doorW * 0.04);
+                ctx.fillRect(doorX - doorW / 2, currentDoorY - doorH, doorW, doorH);
+                ctx.strokeRect(doorX - doorW / 2, currentDoorY - doorH, doorW, doorH);
+            }
+
+            // Draw Clock strictly ABOVE the door lintel
+            const clockY = (currentDoorY - doorH) - clockRadius - 8;
+            const doorData = currentQuestion.doors[lane];
+            drawAnalogClock(doorX, clockY, clockRadius, doorData.h, doorData.m);
+        }
+
+        // Draw portal energy particle effects
+        updateAndDrawPortalParticles();
+
+        playerTargetX = laneXPlayer[playerLane];
+        if (!isAbsorbing) {
+            playerCurrentX += (playerTargetX - playerCurrentX) * 0.2;
+        }
+
+        let renderX = playerCurrentX;
+        let renderY = playerY + 35;
+        let scale = 1.0;
+        let rotation = 0;
+        let alpha = 1.0;
+
+        if (isAbsorbing) {
+            absorptionProgress += 0.025; // Takes ~0.65s
+            if (absorptionProgress >= 1.0) {
+                absorptionProgress = 1.0;
+                isAbsorbing = false;
+                
+                currentLevel++;
+                if (currentLevel > TOTAL_LEVELS) {
+                    finishGame(true);
+                } else {
+                    nextLevel();
+                }
+            } else {
+                // Interpolate Hugo from player position to portal center
+                const ease = absorptionProgress * absorptionProgress;
+                renderX = absorptionStartPos.x + (absorptionTargetPos.x - absorptionStartPos.x) * ease;
+                renderY = absorptionStartPos.y + (absorptionTargetPos.y - absorptionStartPos.y) * ease;
+                
+                // Rapidly spin Hugo as he gets sucked in
+                rotation = absorptionProgress * Math.PI * 8; // 4 full rotations
+                
+                // Scale down to zero
+                scale = Math.max(0, 1.0 - absorptionProgress);
+                
+                // Fade opacity
+                alpha = Math.max(0, 1.0 - absorptionProgress * 1.1);
+            }
+        } else if (isReappearing) {
+            reappearProgress += 0.06; // Takes ~0.3s to reappear
+            if (reappearProgress >= 1.0) {
+                reappearProgress = 1.0;
+                isReappearing = false;
+            }
+            scale = reappearProgress;
+            alpha = reappearProgress;
+        }
+
+        // Render Hugo Character with transformation matrix
+        if (alpha > 0 && scale > 0) {
+            ctx.save();
+            ctx.translate(renderX, renderY);
+            ctx.rotate(rotation);
+            ctx.scale(scale, scale);
+            ctx.globalAlpha = alpha;
+
+            // Shadow
+            if (!isAbsorbing) {
+                ctx.beginPath();
+                ctx.ellipse(0, 20, 40, 12, 0, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(0,0,0,0.4)";
+                ctx.fill();
+            }
+
+            if (imgHugo.complete && imgHugo.naturalWidth !== 0) {
+                const pW = 150;
+                const pH = 170;
+                ctx.drawImage(imgHugo, -pW / 2, -pH + 20, pW, pH);
+            } else {
+                ctx.fillStyle = "#00f0ff";
+                ctx.beginPath();
+                ctx.moveTo(0, -50);
+                ctx.lineTo(-36, 20);
+                ctx.lineTo(0, 4);
+                ctx.lineTo(36, 20);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    // Start canvas render loop
+    requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
